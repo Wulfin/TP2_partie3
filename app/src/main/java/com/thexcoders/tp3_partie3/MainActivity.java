@@ -9,6 +9,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
+import android.telephony.TelephonyManager;
 import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
@@ -30,10 +31,7 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        toSendBtn = findViewById(R.id.to_send_btn);
-        textViewBatteryStatus = findViewById(R.id.text_view_battery_low);
-        textViewCallerNumber = findViewById(R.id.text_view_caller_number);
-
+        Button toSendBtn = findViewById(R.id.to_send_btn);
         toSendBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -41,47 +39,27 @@ public class MainActivity extends AppCompatActivity {
                 sendBroadcast(intent);
             }
         });
-        // Vérifie si la permission est accordée
+
         if (ActivityCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.READ_PHONE_STATE) != PackageManager.PERMISSION_GRANTED) {
-            // Demande la permission si elle n'est pas accordée
-            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.READ_PHONE_STATE}, MY_PERMISSIONS_REQUEST_READ_PHONE_STATE);
-        }
-        filter.addAction(Intent.ACTION_BATTERY_LOW);
-    }
-
-
-    @Override
-    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        switch (requestCode) {
-            case MY_PERMISSIONS_REQUEST_READ_PHONE_STATE: {
-                // Si la demande est annulée, le tableau de résultats est vide
-                if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                    // La permission est accordée, enregistrement du broadcast receiver
-                    IntentFilter filter = new IntentFilter();
-                    filter.addAction("android.intent.action.PHONE_STATE");
-                    registerReceiver(new MyBroadcastCallReceiver(), filter);
-                } else {
-                    // La permission est refusée, affiche un message d'erreur
-                    Toast.makeText(getApplicationContext(), "Permission refused", Toast.LENGTH_SHORT).show();
-                }
-                return;
+            // Should we show an explanation?
+            if (ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.READ_PHONE_STATE)) {
+            } else {
+                ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.READ_PHONE_STATE}, MY_PERMISSIONS_REQUEST_READ_PHONE_STATE);
             }
         }
-    }
-    @Override
-    protected void onResume() {
-        super.onResume();
-        registerReceiver(myBroadcastBatteryLow, filter);
-    }
-    @Override
-    protected void onPause() {
-        super.onPause();
-        unregisterReceiver(myBroadcastBatteryLow);
-    }
 
 
-    public class MyBroadcastBatteryLow extends MyReceiver{
+        filter.addAction(Intent.ACTION_BATTERY_LOW);
+
+        textViewBatteryStatus = findViewById(R.id.text_view_battery_low);
+
+        textViewCallerNumber = findViewById(R.id.text_view_caller_number);
+
+
+
+    }
+
+    public class MyBroadcastBatteryLow extends MyReceiver {
 
         @Override
         public void onReceive(Context context, Intent intent) {
@@ -92,8 +70,49 @@ public class MainActivity extends AppCompatActivity {
     private class MyBroadcastCallReceiver extends MyReceiver {
         @Override
         public void onReceive(Context context, Intent intent) {
-            String incomingNumber = intent.getStringExtra(Intent.EXTRA_PHONE_NUMBER);
-            textViewCallerNumber.setText("Appel entrant de : " + incomingNumber);
+//            if (ActivityCompat.shouldShowRequestPermissionRationale(MainActivity.this, Manifest.permission.READ_PHONE_STATE)) {
+            if (intent.getAction().equals(TelephonyManager.ACTION_PHONE_STATE_CHANGED)) {
+                String state = intent.getStringExtra(TelephonyManager.EXTRA_STATE);
+                if (state.equals(TelephonyManager.EXTRA_STATE_RINGING)) {
+                    String incomingNumber = intent.getStringExtra(TelephonyManager.EXTRA_INCOMING_NUMBER);
+                    textViewCallerNumber.setText("Incoming call from " + incomingNumber);
+                    Toast.makeText(context, "Incoming call from " + incomingNumber, Toast.LENGTH_SHORT).show();
+                }
+            }
+//            } else {
+//                ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.READ_PHONE_STATE}, MY_PERMISSIONS_REQUEST_READ_PHONE_STATE);
+//            }
+
+        }
+    }
+
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        registerReceiver(myBroadcastBatteryLow, filter);
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        unregisterReceiver(myBroadcastBatteryLow);
+
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode,
+                                           String permissions[], int[]
+                                                   grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        switch (requestCode) {
+            case MY_PERMISSIONS_REQUEST_READ_PHONE_STATE: {
+                // If request is cancelled, the result arrays are empty.
+                if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                } else {
+                }
+                return;
+            }
         }
     }
 }
